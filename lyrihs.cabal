@@ -1,0 +1,40 @@
+cabal-version:      3.0
+name:               lyrihs
+version:            0.1.0.0
+synopsis:           Library that implements LRCLIB API + small executable for fetching lyrics
+license:            GPL-3.0-only
+license-file:       LICENSE
+author:             ProggerX
+maintainer:         x@proggers.ru
+category:           Music
+build-type:         Simple
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  Lyrihs, Lyrihs.API
+    -- other-extensions:
+    build-depends:    base >=4.18.2.1,
+                      wreq,
+                      aeson,
+                      lens,
+                      text,
+                      bytestring,
+                      base16-bytestring,
+                      memory,
+                      crypton
+
+    hs-source-dirs:   src
+    default-language: GHC2021
+
+executable lyrihs
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:
+        base >=4.18.2.1,
+        lyrihs
+
+    hs-source-dirs:   app
+    default-language: GHC2021
