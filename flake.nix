@@ -17,7 +17,7 @@
           modifier =
             drv:
             pkgs.haskell.lib.addBuildTools drv (with pkgs; [
-              mkdocs haskell-language-server cabal-install
+              mkdocs haskell-language-server cabal-install ghcid
             ]);
         };
     in

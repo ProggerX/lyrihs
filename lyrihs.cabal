@@ -14,8 +14,7 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  Lyrihs, Lyrihs.API
-    -- other-extensions:
+    exposed-modules:  Lyrihs.API
     build-depends:    base >=4.18.2.1,
                       wreq,
                       aeson,
@@ -23,8 +22,8 @@ library
                       text,
                       bytestring,
                       base16-bytestring,
-                      memory,
-                      crypton
+                      mtl,
+                      cryptohash-sha256
 
     hs-source-dirs:   src
     default-language: GHC2021
