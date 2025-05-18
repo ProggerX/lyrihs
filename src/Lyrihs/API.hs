@@ -18,6 +18,7 @@ module Lyrihs.API (
   PublishResponse (..),
   PublishRequest (..),
   runAPI,
+  runDefaultAPI,
 ) where
 
 import Control.Lens ((&), (&~), (.=), (.~), (^.))
@@ -196,3 +197,6 @@ publish r = do
 
 runAPI :: Url -> ReaderT Url IO a -> IO a
 runAPI url f = runReaderT f url
+
+runDefaultAPI :: ReaderT Url IO a -> IO a
+runDefaultAPI f = runReaderT f "http://lrclib.net/api"
