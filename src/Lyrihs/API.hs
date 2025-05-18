@@ -39,9 +39,13 @@ import GHC.Generics (Generic)
 import Network.Wreq
 import Prelude hiding (id)
 
+-- | Representation of API url
 type Url = String
+
+-- | Monad for API actions that includes API url
 type API = ReaderT Url IO
 
+-- | Crypto proof-of-work challenge for publish
 data Challenge
   = Challenge
   { prefix :: Text
@@ -49,6 +53,7 @@ data Challenge
   }
   deriving (Generic, A.FromJSON)
 
+-- | Track data that is accepted when getting lyrics
 data TrackData
   = TrackData
   { id :: Integer
@@ -62,6 +67,13 @@ data TrackData
   }
   deriving (Generic, A.FromJSON)
 
+-- | Response when getting lyrics
+data GetResponse
+  = NotFound
+  | OK TrackData
+  deriving (Generic, A.FromJSON, Show)
+
+-- | Representation of request for publishing lyrics
 data PublishRequest
   = PublishRequest
   { pName :: Text
@@ -73,18 +85,20 @@ data PublishRequest
   }
   deriving (Generic)
 
-instance A.ToJSON PublishRequest where
-  toJSON PublishRequest{pName, pArtist, pAlbum, pDuration, pLyrics, pSyncedLyrics} =
-    A.object
-      [ "trackName" A..= pName
-      , "artistName" A..= pArtist
-      , "albumName" A..= pAlbum
-      , "duration" A..= pDuration
-      , "plainLyrics" A..= pLyrics
-      , "syncedLyrics" A..= pSyncedLyrics
-      ]
-
+-- | Response when publishing lyrics
 data PublishResponse = PublishOK | IncorrectToken
+
+-- | Query for search. Either text or track+artist+album
+data SearchQuery
+  = TextQuery Text
+  | TrackQuery
+      { qName :: Text
+      , qArtist :: Maybe Text
+      , qAlbum :: Maybe Text
+      }
+
+-- | Response when searching lyrics
+type SearchResponse = [TrackData]
 
 instance Show TrackData where
   show TrackData{id, trackName, artistName, albumName} =
@@ -100,20 +114,16 @@ instance Show TrackData where
         , albumName
         ]
 
-data GetResponse
-  = NotFound
-  | OK TrackData
-  deriving (Generic, A.FromJSON, Show)
-
-data SearchQuery
-  = TextQuery Text
-  | TrackQuery
-      { qName :: Text
-      , qArtist :: Maybe Text
-      , qAlbum :: Maybe Text
-      }
-
-type SearchResponse = [TrackData]
+instance A.ToJSON PublishRequest where
+  toJSON PublishRequest{pName, pArtist, pAlbum, pDuration, pLyrics, pSyncedLyrics} =
+    A.object
+      [ "trackName" A..= pName
+      , "artistName" A..= pArtist
+      , "albumName" A..= pAlbum
+      , "duration" A..= pDuration
+      , "plainLyrics" A..= pLyrics
+      , "syncedLyrics" A..= pSyncedLyrics
+      ]
 
 decode :: (A.FromJSON a) => ByteString -> a
 decode =
@@ -137,9 +147,14 @@ getUrl url track artist album duration = do
       param "duration" .= [T.pack $ show duration]
 
 getLyrics, getCachedLyrics :: Text -> Text -> Text -> Integer -> API GetResponse
+
+-- | Get lyrics by track name, artist, album and duration
 getLyrics = getUrl "/get"
+
+-- | getLyrics, but for cached lyrics.
 getCachedLyrics = getUrl "/get-cached"
 
+-- | Get lyrics by id
 getLyricsById :: Integer -> API GetResponse
 getLyricsById id' = do
   url <- ask
@@ -149,6 +164,7 @@ getLyricsById id' = do
     200 -> pure $ OK $ decode (resp ^. responseBody)
     _ -> error "Unexpected status code on get endpoint"
 
+-- | Search lyrics by either text query or track-artist-album
 searchLyrics :: SearchQuery -> API SearchResponse
 searchLyrics q = do
   url <- ask
@@ -163,12 +179,14 @@ searchLyrics q = do
         param "artist_name" .= toList qArtist
         param "album_name" .= toList qAlbum
 
+-- | Request proof-of-work challenge for publish
 requestChallenge :: API Challenge
 requestChallenge = do
   url <- ask
   resp <- liftIO $ post (url <> "/request-challenge") $ A.toJSON ()
   pure $ decode (resp ^. responseBody)
 
+-- | Publish Lyrics (without requesting and solving challenge)
 publish' :: Text -> PublishRequest -> API PublishResponse
 publish' token request = do
   url <- ask
@@ -181,6 +199,7 @@ publish' token request = do
   body = A.toJSON request
   opts = defaults & header "X-Publish-Token" .~ [encodeUtf8 token]
 
+-- | Solve proof-of-work challenge for publish
 solveChallenge :: Challenge -> Text
 solveChallenge Challenge{prefix, target} = go 0
  where
@@ -190,13 +209,16 @@ solveChallenge Challenge{prefix, target} = go 0
   go n | hash (prefix' <> BC.pack (show n)) < target' = prefix <> ":" <> T.pack (show n)
   go n = go (n + 1)
 
+-- | Publish Lyrics (request and solve challenge)
 publish :: PublishRequest -> API PublishResponse
 publish r = do
   c <- requestChallenge
   publish' (solveChallenge c) r
 
+-- | Run API action with given API url
 runAPI :: Url -> ReaderT Url IO a -> IO a
 runAPI url f = runReaderT f url
 
+-- | Run API action with default API url
 runDefaultAPI :: ReaderT Url IO a -> IO a
 runDefaultAPI f = runReaderT f "http://lrclib.net/api"
