@@ -216,9 +216,9 @@ publish r = do
   publish' (solveChallenge c) r
 
 -- | Run API action with given API url
-runAPI :: Url -> ReaderT Url IO a -> IO a
+runAPI :: Url -> API a -> IO a
 runAPI url f = runReaderT f url
 
 -- | Run API action with default API url
-runDefaultAPI :: ReaderT Url IO a -> IO a
+runDefaultAPI :: API a -> IO a
 runDefaultAPI f = runReaderT f "http://lrclib.net/api"
